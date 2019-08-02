@@ -1,0 +1,15 @@
+nodeType newlang
+ root
+ description This is the basic root node for your new language!
+ catchAllNodeType catchAllError
+ inScope hello
+cellType name
+ description A person's name
+ highlightScope string
+cellType keyword
+ highlightScope keyword
+nodeType hello
+ catchAllCellType name
+ firstCellType keyword
+nodeType catchAllError
+ baseNodeType errorNode

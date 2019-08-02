@@ -1,0 +1,58 @@
+nodeType numbers
+ root
+ description A useless Tree Language for testing Tree Notation features.
+ inScope abstractArithmeticReducer commentNode hashBangNode
+ catchAllNodeType error
+cellType float
+cellType commentWord
+ highlightScope comment
+cellType errorWord
+ highlightScope invalid
+cellType number
+ highlightScope constant.numeric
+ extends float
+cellType numbers
+ extends number
+cellType operator
+ highlightScope keyword.operator.arithmetic
+nodeType abstractArithmeticReducer
+ catchAllCellType numbers
+ description First reduces any child lists to one number and then reduces its own lists to one number using provided operator.
+ javascript
+  executeSync() {
+    return this.numbers.slice(1).reduce((curr, tot) => eval(`${curr}${this.getWord(0)}${tot}`), this.numbers[0])
+  }
+  async execute() { return this.executeSync() }
+ firstCellType operator
+ inScope abstractArithmeticReducer commentNode
+ abstract
+nodeType commentNode
+ match #
+ description This is a line comment.
+ firstCellType commentWord
+ catchAllCellType commentWord
+ catchAllNodeType commentNode
+nodeType error
+ catchAllCellType errorWord
+ baseNodeType errorNode
+ firstCellType errorWord
+nodeType hashBangNode
+ match #!
+ extends commentNode
+nodeType comment
+ extends commentNode
+nodeType modNode
+ match %
+ extends abstractArithmeticReducer
+nodeType timesNode
+ match *
+ extends abstractArithmeticReducer
+nodeType addNode
+ match +
+ extends abstractArithmeticReducer
+nodeType substractNode
+ match -
+ extends abstractArithmeticReducer
+nodeType divideNode
+ match /
+ extends abstractArithmeticReducer

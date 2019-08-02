@@ -1,0 +1,5 @@
+nodeType latin
+ root
+ catchAllNodeType any
+nodeType any
+ baseNodeType blobNode

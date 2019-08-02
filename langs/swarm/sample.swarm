@@ -1,0 +1,34 @@
+#! /usr/local/bin/node --use_strict /usr/local/bin/jtree
+test swarmSample
+ arrangeTestSubject
+  require ../../built/GrammarLanguage.js GrammarProgram
+  constructWithBlockString
+   nodeType testlang
+    root
+    compilesTo txt
+    inScope baseNode
+    catchAllNodeType errorNode
+   cellType any
+   cellType word
+    extends any
+   nodeType errorNode
+    baseNodeType errorNode
+   nodeType baseNode
+   nodeType block
+    extends baseNode
+    inScope baseNode
+   nodeType to
+    extends block
+    cells word
+    tags test
+    compiler
+     stringTemplate to {word}
+     closeChildren end
+ getAllErrors
+  lengthIs 0
+ getRunTimeFirstWordsInScope
+  lengthIs 4
+ getNodeTypeDefinitionByNodeTypeId to
+  typeIs object
+ getTopNodeTypeIds
+  lengthIs 3

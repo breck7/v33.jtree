@@ -1,0 +1,340 @@
+todo Add comments?
+todo Make run in browser
+todo Add print or tracer type of intermediate element. debugger?
+nodeType swarm
+ root
+ description A Tree Language for unit testing.
+ inScope hashbangNode arrangeTestSubject testBlock
+ catchAllNodeType error
+ javascript
+  getCommandParent(testSubject) { return testSubject }
+  getTestSetupNode() {
+    return this.getChildInstancesOfNodeTypeId("arrangeTestSubject")[0]
+  }
+  async execute(filepath) {
+    const tests = this.getTestsToRun()
+    await Promise.all(tests.map(test => test.execute(filepath)))
+    return `${tests.length} tests started.`
+  }
+  getTestsToRun() {
+    const solos = this.getChildInstancesOfNodeTypeId("testOnly")
+    return solos.length ? solos : this.getChildInstancesOfNodeTypeId("testBlock").filter(test => !(test.doesExtend("skipTest")))
+  }
+cellType anyFirstWord
+cellType anyWord
+ highlightScope string
+cellType arrangeWord
+ highlightScope constant.language
+cellType assertWord
+ highlightScope keyword.operator
+cellType commandWord
+ highlightScope variable.function
+cellType controlWord
+ highlightScope keyword.control
+cellType extraWord
+ highlightScope invalid
+cellType filepath
+ highlightScope string
+cellType hashBangWord
+ highlightScope comment
+cellType int
+ regex \-?[0-9]+
+ highlightScope constant.numeric.integer
+cellType parameterWord
+ highlightScope variable.parameter
+cellType todoWord
+ highlightScope comment
+cellType typeOfOption
+ description The 6 possible results for Javascript's typeof.
+ highlightScope constant.language
+ enum object boolean function number string undefined
+nodeType abstractAssertion
+ firstCellType assertWord
+ abstract
+ javascript
+  async execute(testSubject) {
+    const finalParts = abstractAssertion._getMethodFromDotPath(testSubject, this.getWord(1))
+    const subject = finalParts[0]
+    const command = finalParts[1]
+    const actual = subject[command]()
+    const actualAsString = this.parseActual(actual).toString()
+    const expected = this.getExpected()
+    const isPassed = this.getTestResult(actualAsString, expected, this.getLine())
+    if (!isPassed) {
+      this.printFailureMessage(actual)
+      debugger
+    }
+  }
+  printFailureMessage() {
+    const line = this.getLine()
+    this.setLine(`FAILED:${line}`)
+    this.setLine(line)
+    console.log(this.getStackString())
+    const lineNumber = this.getPoint()
+    console.log(`Line number ${lineNumber.y}`)
+  }
+  equal(actual, expected, message) {
+    this.getParent().getEqualFn()(actual, expected, message)
+  }
+  getTestResult(actualAsString, expected, message) {
+    this.equal(actualAsString, expected, message)
+    return actualAsString === expected
+  }
+  parseActual(actual) {
+    return actual
+  }
+  executeSync(result) {
+    const expected = this.getSyncExpected()
+    const actual = this.parseActual(result)
+    const actualIsUndefined = actual === undefined
+    const actualAsString = actualIsUndefined ? "undefined" : actual.toString()
+    const isPassed = this.getTestResult(actualAsString, expected, this.getLine())
+    if (!isPassed) {
+      this.printFailureMessage(result)
+      debugger
+    }
+  }
+  getExpected() {
+    return this.getWordsFrom(2).join(" ")
+  }
+  getSyncExpected() {
+    return this.getContent()
+  }
+  static _getMethodFromDotPath(context, str) {
+    const methodParts = str.split(".")
+    while (methodParts.length > 1) {
+      context = context[methodParts.shift()]()
+    }
+    const final = methodParts.shift()
+    return [context, final]
+  }
+nodeType terminal
+ firstCellType arrangeWord
+ abstract
+nodeType testBlock
+ catchAllCellType anyWord
+ javascript
+  getTestSetupNode() {
+    return this.getNode("arrangeTestSubject") || this.getParent().getTestSetupNode()
+  }
+  isAsync() {
+    return this.getTestSetupNode().has("async")
+  }
+  setEqualMethod(equal) {
+    this._equal = equal
+    return this
+  }
+  getTestBlock() { return this }
+  getEqualFn() {
+    return this._equal
+  }
+  async _executeNode(programFilepath) {
+    const testSubject = this.getTestSetupNode().getTestSubject(programFilepath)
+    const isAsync = this.isAsync()
+    const executeMethod = isAsync ? "execute" : "executeSync"
+    const tap = require("tap") // todo: make work with browser
+    return new Promise((resolve, reject) => {
+      const testName = this.getLine()
+      tap.test(testName, async childTest => {
+        this.setEqualMethod(childTest.equal)
+        const promises = this.map(async child => {
+          const result = await child[executeMethod](testSubject)
+          return isAsync ? Promise.resolve(result) : result
+        })
+        await Promise.all(promises)
+        childTest.end()
+        resolve()
+      })
+    })
+  }
+  async _executeBrowser() {
+    const testSubject = this.getTestSetupNode().getTestSubject()
+    const isAsync = this.isAsync()
+    const executeMethod = isAsync ? "execute" : "executeSync"
+    const testName = this.getLine()
+    console.log("testing: " + testName)
+    this.setEqualMethod((actual, expected, message) => {
+      if (actual !== expected) console.log("fail")
+      else console.log("pass")
+    })
+    const promises = this.map(child => {
+      const result = child[executeMethod](testSubject)
+      return isAsync ? Promise.resolve(result) : result
+    })
+    await Promise.all(promises)
+  }
+  async execute(programFilepath) {
+    const res = await this.isNodeJs() ? this._executeNode(programFilepath) : this._executeBrowser()
+    return res
+  }
+ inScope arrangeTestSubject
+ catchAllNodeType commandNode
+ firstCellType controlWord
+ abstract
+nodeType hashbangNode
+ match #!
+ description Standard bash hashbang line.
+ cells hashBangWord
+ catchAllCellType hashBangWord
+ firstCellType hashBangWord
+nodeType arrangeTestSubject
+ javascript
+  getTestSubject(programFilepath) {
+    const requiredClass = this._getRequiredClass(programFilepath)
+    const constructorArgNode = this.getChildInstancesOfNodeTypeId("constructWithBlockString")[0]
+    const param = constructorArgNode ? constructorArgNode.childrenToString() : undefined
+    return this.has("static") ? requiredClass : new requiredClass(param)
+   }
+  _getRequiredClass(programFilepath) {
+    let requiredClass =
+      this.get("require") ||
+      this.getRootNode()
+        .getNode("arrangeTestSubject")
+        .get("require")
+    const requiredClassParts = requiredClass.split(" ") // Allows for ./ExportsClasses.js ChildClass
+    requiredClass = requiredClassParts[0]
+    let theClass
+    if (this.isNodeJs()) theClass = require(jtree.Utils.resolvePath(requiredClass, programFilepath))
+    else theClass = window[jtree.Utils.getClassNameFromFilePath(requiredClass)]
+    if (requiredClassParts[1]) theClass = jtree.Utils.resolveProperty(theClass, requiredClassParts[1])
+    if (!theClass)
+      throw new Error(`Required class '${requiredClass}${requiredClassParts[1] ? " (" + requiredClassParts[1] + ")" : ""}' not found for ${this.toString()}`)
+    return theClass
+   }
+  executeSync() {}
+ firstCellType arrangeWord
+ inScope async requireNode staticNode constructWithBlockString todo
+nodeType async
+ description Set this in setup to test async methods.
+ extends terminal
+nodeType blockStringIs
+ description When your expected value is a multiline string.
+ catchAllNodeType textBlock
+ javascript
+  getExpected() { return this.childrenToString() }
+  getSyncExpected() { return this.childrenToString() }
+ extends abstractAssertion
+nodeType abstractCommandArg
+ abstract
+ javascript
+  executeSync() {}
+nodeType blockStringParam
+ firstCellType parameterWord
+ description Pass in a multiline string as a command arg. #todo: rename
+ extends abstractCommandArg
+ catchAllNodeType textBlock
+nodeType commandNode
+ javascript
+  getTestBlock() {
+    return this.getParent()
+  }
+  getEqualFn() {
+    return this.getTestBlock().getEqualFn()
+  }
+  _getArgs() {
+    const argNodes = this.getChildInstancesOfNodeTypeId("abstractCommandArg")
+    if (argNodes.length) return argNodes.map(arg => arg.childrenToString())
+    return this.getWordsFrom(1)
+  }
+  _executeSwarmCommand(testSubject) {
+    const commandName = this.getFirstWord()
+    const commandParent = this.getRootNode().getCommandParent(testSubject) // todo: hacky.
+    const commandFn = commandParent[commandName]
+    if (!commandFn) throw new Error(`No function "${commandName}" on "${commandParent.constructor.name}`)
+    return commandFn.apply(commandParent, this._getArgs())
+  }
+  async execute(testSubject) {
+    await this._executeSwarmCommand(testSubject)
+    return super.execute(testSubject) // note: this might not work with closure compiler b/c of bug #2652
+  }
+  executeSync(testSubject) {
+    const newTestSubject = this._executeSwarmCommand(testSubject)
+    return this.map(child => child.executeSync(newTestSubject))
+  }
+ description Input is an object, and calls some method with an optional array of string args.
+ catchAllCellType anyWord
+ catchAllNodeType commandNode
+ firstCellType commandWord
+ inScope blockStringParam abstractAssertion
+nodeType constructWithBlockString
+ javascript
+  executeSync() {}
+ description Pass in a multiline string to setup constructor. #todo: rename
+ catchAllNodeType textBlock
+ firstCellType arrangeWord
+nodeType error
+ baseNodeType errorNode
+nodeType lengthIs
+ description Intake is an array, and checks if the length of array matches expected.
+ cells int
+ javascript
+  parseActual(actual) { return actual.length }
+  printFailureMessage(actual) {
+    super.printFailureMessage()
+    console.log(actual.join("\n"))
+  }
+ extends abstractAssertion
+nodeType requireNode
+ match require
+ cells filepath
+ catchAllCellType anyWord
+ extends terminal
+nodeType staticNode
+ match static
+ description Add this to setup node to import class directly without initiating it, for static method testing.
+ extends terminal
+nodeType stringExcludes
+ description Converts the input to string and ensure the string does NOT contain the provided string
+ catchAllCellType anyWord
+ javascript
+   getTestResult(actualAsString, expected, message) {
+    const result = !actualAsString.includes(expected)
+    if (!result) {
+      const index = actualAsString.indexOf(expected)
+      const start = Math.max(0, index - 50)
+      message += ` Found ${expected} in: ` + actualAsString.substr(start, index + 50 + expected.length)
+    }
+    this.equal(result, true, message)
+    return result
+  }
+ extends abstractAssertion
+nodeType stringIncludes
+ catchAllCellType anyWord
+ description Converts the input to string and see if the string contains the provided string
+ javascript
+   getTestResult(actualAsString, expected, message) {
+    const result = actualAsString.includes(expected)
+    this.equal(result, true, message)
+    return result
+  }
+ extends abstractAssertion
+nodeType stringIs
+ description Intake is anything with a toString method, and compares that to provided expected value.
+ catchAllCellType anyWord
+ extends abstractAssertion
+nodeType test
+ description Basic test block.
+ extends testBlock
+nodeType testOnly
+ description If set, only this test block will be run.
+ extends testBlock
+nodeType skipTest
+ description If you want to skip running a test.
+ javascript
+  async execute() { console.log(`Skipped test ${this.getLine()}`) }
+ extends testBlock
+nodeType textBlock
+ firstCellType anyWord
+ catchAllCellType anyWord
+ catchAllNodeType textBlock
+nodeType todo
+ description Todos let you add notes about what is coming in the future in the source code. They are like comments in other languages except should only be used for todos.
+ catchAllCellType todoWord
+ firstCellType todoWord
+ catchAllNodeType todo
+nodeType typeIs
+ description Assert result is one of Javascript's 6 typeof types.
+ cells typeOfOption
+ javascript
+  parseActual(actual) { return typeof actual }
+ extends abstractAssertion

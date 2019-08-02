@@ -1,0 +1,41 @@
+#! /usr/local/bin/node --use_strict /usr/local/bin/jtree
+test grammarSample
+ arrangeTestSubject
+  require ../built/GrammarLanguage.js GrammarProgram
+  constructWithBlockString
+   nodeType testlang
+    root
+    compilesTo txt
+    inScope baseNode
+   cellType any
+   foo
+   cellType anyFirstWord
+   cellType word
+    extends any
+   nodeType baseNode
+   nodeType block
+    extends baseNode
+    inScope baseNode
+   nodeType to
+    extends block
+    cells word
+    tags test
+    compiler
+     stringTemplate to {word}
+     closeChildren end
+ getRunTimeFirstWordsInScope
+  lengthIs 4
+ getNodeTypeDefinitionByNodeTypeId to
+  typeIs object
+ getTopNodeTypeIds
+  lengthIs 3
+ getExtensionName
+  stringIs testlang
+ toSublimeSyntaxFile
+  typeIs string
+ isDefined notDefined
+  stringIs false
+ isDefined to
+  stringIs true
+ getAllErrors
+  lengthIs 0
